@@ -225,4 +225,5 @@ return [
         'minlength' => 'The :attribute must be at least :min characters.',
         'maxlength' => 'The :attribute may not be greater than :max characters.',
     ],
+    'ip_ban' => 'Your IP has been banned due to too many login attempts. Please try again later.',
 ];

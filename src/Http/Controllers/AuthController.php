@@ -13,6 +13,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Dcat\Admin\Models\LoginError;
 
 class AuthController extends Controller
 {
@@ -28,6 +30,72 @@ class AuthController extends Controller
      */
     protected $redirectTo;
 
+    private function realIp()
+    {
+      return isset($_SERVER["HTTP_CF_CONNECTING_IP"]) ? $_SERVER["HTTP_CF_CONNECTING_IP"] : request()->ip();
+    }
+
+    private function ipBan(Request $request)
+    {
+      $ip = $this->realIp();
+      $window = (int) config('admin.login_errors.window_seconds', 7200);
+      $maxErrors = (int) config('admin.login_errors.max_errors', 5);
+
+      $r = LoginError::query()->where('ip', $ip)->first();
+      if ($r) {
+        // 使用 updated_at 作为最近一次尝试时间
+        $expiredAt = now()->subSeconds($window);
+        if (! empty($r->updated_at) && $r->updated_at < $expiredAt) {
+          // 超过时间窗口则重置计数
+          LoginError::query()->where('ip', $ip)->update([
+            'errors' => 0,
+            'updated_at' => now(),
+          ]);
+          return false;
+        }
+        // 在窗口内达到阈值则封禁
+        return $r->errors >= $maxErrors;
+      }
+
+      return false;
+    }
+
+    private function incrementError(Request $request)
+    {
+      $ip = $this->realIp();
+      $window = (int) config('admin.login_errors.window_seconds', 7200);
+
+      $r = LoginError::query()->where('ip', $ip)->first();
+      if (!$r) {
+        LoginError::query()->create([
+          'username' => $request[$this->username()],
+          'ip' => $ip,
+          'errors' => 1,
+          'created_at' => now(),
+          'updated_at' => now(),
+        ]);
+      } else {
+        $expiredAt = now()->subSeconds($window);
+        if (! empty($r->updated_at) && $r->updated_at < $expiredAt) {
+          LoginError::query()->where('ip', $ip)->update([
+            'errors' => 1,
+            'updated_at' => now(),
+          ]);
+        } else {
+          LoginError::query()->where('ip', $ip)->update([
+            'errors' => $r->errors + 1,
+            'updated_at' => now(),
+          ]);
+        }
+      }
+    }
+
+    private function clearErrorOnSuccess(Request $request)
+    {
+      $ip = $this->realIp();
+      LoginError::query()->where('ip', $ip)->delete();
+    }
+
     /**
      * Show the login page.
      *
@@ -39,7 +107,13 @@ class AuthController extends Controller
             return redirect($this->getRedirectPath());
         }
 
-        return $content->full()->body(view($this->view));
+        $ban = $this->ipBan(request());
+        $captchaEnabled = (bool) config('admin.login_captcha', true) && function_exists('captcha_src');
+
+        return $content->full()->body(view($this->view, [
+          'ban' => $ban,
+          'captchaEnabled' => $captchaEnabled,
+        ]));
     }
 
     /**
@@ -50,22 +124,39 @@ class AuthController extends Controller
      */
     public function postLogin(Request $request)
     {
-        $credentials = $request->only([$this->username(), 'password']);
+        $ban = $this->ipBan(request());
+        if ($ban) {
+            return $this->validationErrorsResponse([
+                $this->username() => __('admin.ip_ban'),
+            ]);
+        }
+
+        $credentials = $request->only([$this->username(), 'password', 'captcha']);
         $remember = (bool) $request->input('remember', false);
 
         /** @var \Illuminate\Validation\Validator $validator */
-        $validator = Validator::make($credentials, [
+        $rules = [
             $this->username()   => 'required',
             'password'          => 'required',
-        ]);
+        ];
+        if ((bool) config('admin.login_captcha', true) && function_exists('captcha')) {
+            $rules['captcha'] = 'required|captcha';
+        }
+        $validator = Validator::make($credentials, $rules);
 
         if ($validator->fails()) {
+            $this->incrementError($request);
             return $this->validationErrorsResponse($validator);
         }
 
+        unset($credentials['captcha']);
+
         if ($this->guard()->attempt($credentials, $remember)) {
+            $this->clearErrorOnSuccess($request);
             return $this->sendLoginResponse($request);
         }
+
+        $this->incrementError($request);
 
         return $this->validationErrorsResponse([
             $this->username() => $this->getFailedLoginMessage(),

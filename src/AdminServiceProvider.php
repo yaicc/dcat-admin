@@ -93,6 +93,14 @@ class AdminServiceProvider extends ServiceProvider
         $this->loadAdminAuthConfig();
         $this->registerRouteMiddleware();
         $this->registerServices();
+        if (class_exists(\Mews\Captcha\CaptchaServiceProvider::class)) {
+            $this->app->register(\Mews\Captcha\CaptchaServiceProvider::class);
+            $options = (array) config('admin.captcha_options', []);
+            if ($options) {
+                $currentDefault = (array) config('captcha.default', []);
+                config(['captcha.default' => array_merge($currentDefault, $options)]);
+            }
+        }
         $this->registerExtensions();
 
         $this->commands($this->commands);

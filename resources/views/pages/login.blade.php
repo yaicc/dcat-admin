@@ -19,6 +19,20 @@
     .form-group .control-label {
         text-align: left;
     }
+    /* captcha inline layout */
+    .captcha-flex {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+    .captcha-flex .captcha-input {
+        flex: 1 1 auto;
+        position: relative;
+    }
+    img.captcha {
+        height: auto; /* 由脚本在运行时匹配输入框高度 */
+        border-radius: .25rem;
+    }
 </style>
 
 <div class="login-page bg-40">
@@ -29,6 +43,11 @@
         <div class="card">
             <div class="card-body login-card-body shadow-100">
                 <p class="login-box-msg mt-1 mb-1">{{ __('admin.welcome_back') }}</p>
+                @if($ban)
+                    <div class="alert alert-danger">
+                        <p>{{ __('admin.ip_ban') }}</p>
+                    </div>
+                @endif
 
                 <form id="login-form" method="POST" action="{{ admin_url('auth/login') }}">
 
@@ -89,6 +108,42 @@
                         @endif
 
                     </fieldset>
+
+                    @if(!empty($captchaEnabled))
+                    <fieldset class="form-label-group form-group">
+                        <div class="captcha-flex">
+                            <div class="captcha-input position-relative has-icon-left">
+                                <input
+                                        id="captcha"
+                                        type="text"
+                                        class="form-control {{ $errors->has('captcha') ? 'is-invalid' : '' }}"
+                                        name="captcha"
+                                        placeholder="{{ trans('admin.captcha') }}"
+                                        required
+                                        autocomplete="captcha"
+                                >
+                                <div class="form-control-position">
+                                    <i class="feather icon-image"></i>
+                                </div>
+                                <label for="captcha" class="d-none">{{ trans('admin.captcha') }}</label>
+                            </div>
+                            @php($__captcha_src = function_exists('captcha_src') ? captcha_src() : '')
+                            @if($__captcha_src)
+                            <img class="captcha" src="{{ $__captcha_src }}" title="{{ trans('admin.reload') }}" style="cursor:pointer" onclick="this.src='{{ $__captcha_src }}&r='+Math.random()">
+                            @endif
+                        </div>
+
+                        <div class="help-block with-errors"></div>
+                        @if($errors->has('captcha'))
+                            <span class="invalid-feedback text-danger" role="alert">
+                                @foreach($errors->get('captcha') as $message)
+                                    <span class="control-label" for="inputError"><i class="feather icon-x-circle"></i> {{$message}}</span><br>
+                                @endforeach
+                            </span>
+                        @endif
+                    </fieldset>
+                    @endif
+
                     <div class="form-group d-flex justify-content-between align-items-center">
                         <div class="text-left">
                             @if(config('admin.auth.remember'))
@@ -125,5 +180,23 @@ Dcat.ready(function () {
     $('#login-form').form({
         validate: true,
     });
+    // 点击验证码图片刷新，防止缓存
+    $(document).on('click', 'img.captcha', function() {
+        var src = $(this).attr('src').split('&r=')[0];
+        $(this).attr('src', src + '&r=' + Math.random());
+    });
+    // 统一验证码图片与输入框高度
+    var adjustCaptchaHeight = function() {
+        var $input = $('#captcha');
+        var $img = $('img.captcha');
+        if ($input.length && $img.length) {
+            var h = $input.outerHeight();
+            if (h) {
+                $img.css('height', h + 'px');
+            }
+        }
+    };
+    adjustCaptchaHeight();
+    $(window).on('resize', adjustCaptchaHeight);
 });
 </script>

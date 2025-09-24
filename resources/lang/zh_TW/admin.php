@@ -226,4 +226,5 @@ return [
         'minlength' => ':attribute 長度不能少於 :min。',
         'maxlength' => ':attribute 長度不能超過 :max。',
     ],
+    'ip_ban' => '您的IP已被禁止登入，請2小時後再試。',
 ];

@@ -161,6 +161,28 @@ return [
         'enable_session_middleware' => false,
     ],
 
+    // 登录页验证码开关（深度集成，默认开启；当 captcha 包不可用时将自动关闭）
+    'login_captcha' => true,
+
+    // 登录错误统计与封禁配置
+    'login_errors' => [
+        // 封禁时间窗口（秒）
+        'window_seconds' => 7200,
+        // 在时间窗口内允许的最大错误次数，达到或超过即封禁
+        'max_errors' => 5,
+    ],
+
+    // Mews\Captcha 配置项（将自动注入到 config('captcha.default')）
+    'captcha_options' => [
+        'length' => 4,
+        'width' => 120,
+        'height' => 36,
+        'quality' => 90,
+        'math' => false,
+        'expire' => 60,
+        'encrypt' => false,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | The global Grid setting
@@ -309,6 +331,7 @@ return [
         'settings_table'         => 'admin_settings',
         'extensions_table'       => 'admin_extensions',
         'extension_histories_table' => 'admin_extension_histories',
+        'login_errors_table' => 'admin_login_errors',
     ],
 
     /*
