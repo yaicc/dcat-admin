@@ -166,6 +166,7 @@ class Grid
         'table_collapse'      => true,
         'toolbar'             => true,
         'create_mode'         => self::CREATE_MODE_DEFAULT,
+        'edit_mode'           => self::CREATE_MODE_DEFAULT,
         'dialog_form_area'    => ['700px', '670px'],
         'table_class'         => ['table', 'custom-data-table', 'data-table'],
         'scrollbar_x'         => false,
@@ -842,6 +843,25 @@ HTML;
     public function enableDialogCreate()
     {
         return $this->createMode(self::CREATE_MODE_DIALOG);
+    }
+
+    /**
+     * @param  string  $mode
+     * @return $this
+     */
+    public function editMode(string $mode)
+    {
+        return $this->option('edit_mode', $mode);
+    }
+
+    /**
+     * 参考 enableDialogCreate 的实现，启用对话框编辑。
+     *
+     * @return $this
+     */
+    public function enableDialogEdit()
+    {
+        return $this->editMode(self::CREATE_MODE_DIALOG);
     }
 
     /**

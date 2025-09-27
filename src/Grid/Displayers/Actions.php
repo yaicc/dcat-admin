@@ -266,6 +266,14 @@ class Actions extends AbstractDisplayer
      */
     protected function renderEdit()
     {
+        // 当设置为对话框编辑时，复用 QuickEdit 行为（对话框 + 刷新）
+        if ($this->grid->option('edit_mode') === \Dcat\Admin\Grid::CREATE_MODE_DIALOG) {
+            $action = config('admin.grid.actions.quick_edit') ?: QuickEdit::class;
+            $action = $action::make($this->getEditLabel());
+
+            return $this->prepareAction($action);
+        }
+
         $action = config('admin.grid.actions.edit') ?: Edit::class;
         $action = $action::make($this->getEditLabel());
 
