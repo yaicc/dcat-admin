@@ -10,6 +10,7 @@ use Dcat\Admin\Traits\HasVariables;
 use Dcat\Admin\Widgets\Dump;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Renderable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -535,7 +536,13 @@ HTML;
      */
     public function fill($model)
     {
-        $this->value(Arr::get($model->toArray(), $this->name));
+        if ($model instanceof Model) {
+            $this->value(data_get($model, $this->getName()));
+
+            return;
+        }
+
+        $this->value(Arr::get($model->toArray(), $this->getName()));
     }
 
     /**
